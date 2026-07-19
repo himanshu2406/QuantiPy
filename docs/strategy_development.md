@@ -57,6 +57,31 @@ class MyCustomStrategy(StrategyBaseClass):
 
 - **Backtesting:** Run your strategy against historical data.
 - **Live Monitoring:** Check real-time performance via the **Strategy Monitor** dashboard.
+- **Verification:** Before trusting a new strategy, run it through `StrategyValidator`
+  (see below) to catch schema bugs and look-ahead bias automatically.
+
+### Automated Strategy Verification
+
+`strategy/strategy_validator.py` provides `StrategyValidator`, which checks:
+
+1. **Output schema** — `entries`/`exits`/`close_data`/`open_data` share the same index
+   and columns, `entries`/`exits` are boolean with no NaNs, and no bar has both an
+   entry and an exit signal for the same symbol at once.
+2. **Look-ahead bias** — your strategy is run once on the full history, then again on
+   truncated prefixes of it. If a signal at time T changes depending on whether data
+   *after* T is present in the input, that's proof the strategy is reading future data
+   it shouldn't have access to yet.
+
+```python
+from strategy.strategy_validator import StrategyValidator
+from strategy.public.EmaStrat import EMAStrategy
+
+strategy = EMAStrategy(fast_ema_period=10, slow_ema_period=100)
+report = StrategyValidator().validate(strategy, ohlcv_data)
+
+print(report)  # ValidationReport: PASSED, or a list of specific issues found
+assert report.passed
+```
 
 ### Considerations
 
